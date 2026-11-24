@@ -82,6 +82,13 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .big{font-family:var(--display);font-size:20px;padding:10px 22px;border-radius:12px;border:2px solid #2f5a1b;background:#4f8f2c;color:#fff;cursor:pointer}
 .big.alt{background:#fffaf0;color:var(--ink);border-color:var(--wood-edge)}
 .big:hover{filter:brightness(1.08)}
+.foes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin:14px 0 4px;text-align:left}
+.foe{display:flex;gap:10px;align-items:center;background:rgba(139,106,61,.12);border-radius:10px;padding:6px 10px 6px 4px;min-width:0}
+.foe canvas{width:58px;height:72px;flex:none}
+.foe b{display:block;font-family:var(--display);font-weight:400;font-size:17px}
+.foe em{font-style:normal;font-size:11px;background:#c2563b;color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.foe span{font-size:12.5px;color:#5a4428;line-height:1.4}
+.foe.new{background:rgba(194,86,59,.14);outline:2px solid rgba(194,86,59,.35)}
 @media (max-width:640px){
   .card{width:50px;height:68px}
   .card canvas{width:44px;height:38px}
@@ -121,7 +128,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:2px}
     <div class="bar" id="bar"><div class="fill" id="fill"></div></div>
     <span class="wv" id="wv">0 / 0 波</span>
   </div>
-  <div class="hint">点卡片选植物，再点草坪种下；点击飘落的露珠收集。快捷键：1–7 选卡，S 铲子，空格暂停，Esc 取消。手机横屏玩更舒服。</div>
+  <div class="hint">点卡片选植物，再点草坪种下；拿同种卡片点自己的植物可升级；点击露珠收集。快捷键：1–7 选卡，S 铲子，空格暂停，Esc 取消。手机横屏玩更舒服。</div>
 </div>
 
 <div class="overlay" id="ov"><div class="panel" id="panel"></div></div>
@@ -142,19 +149,24 @@ const PLANTS = {
   twin:  { name:'双子刺果', cost:200, cd:7.5, hp:300,  tip:'一次发射两颗刺果' },
 };
 const ZOMBIES = {
-  walker: { name:'游尸',   hp:200,  armor:0,   speed:17, bite:60,  cost:1 },
-  armor:  { name:'铁甲尸', hp:200,  armor:560, speed:17, bite:60,  cost:3 },
-  runner: { name:'疾行尸', hp:170,  armor:0,   speed:38, bite:60,  cost:2 },
-  brute:  { name:'巨尸',   hp:1400, armor:0,   speed:11, bite:180, cost:6 },
+  walker:  { name:'游尸',   hp:200,  armor:0,   speed:17, bite:60,  cost:1, tip:'被石葫芦挡久了会绕到旁边的行' },
+  armor:   { name:'铁甲尸', hp:200,  armor:560, speed:16, bite:60,  cost:3, tip:'铁甲先吃伤害，打掉后才伤到本体' },
+  runner:  { name:'疾行尸', hp:170,  armor:0,   speed:38, bite:60,  cost:2, tip:'专挑防守最弱的行；被挡住会立刻换行' },
+  thrower: { name:'投石尸', hp:300,  armor:0,   speed:15, bite:60,  cost:3, tip:'远处停下，越过石葫芦砸后排植物' },
+  shaman:  { name:'祭司尸', hp:380,  armor:0,   speed:12, bite:50,  cost:4, tip:'躲在后面，给周围尸群回血，优先打它' },
+  brute:   { name:'巨尸',   hp:1500, armor:0,   speed:11, bite:200, cost:6, tip:'血厚，挑火力最猛的行硬闯' },
 };
 const ALL = ['dew','burr','wall','mine','frost','boom','twin'];
 const LEVELS = [
-  { name:'第一天 · 初来乍到', short:'初来乍到', plants:['dew','burr'], zs:{walker:1}, unlock:{}, waves:6, base:1, grow:0.6, gap:24, first:28, dew:150 },
+  { name:'第一天 · 初来乍到', short:'初来乍到', plants:['dew','burr'], zs:{walker:1}, unlock:{}, waves:6, base:1, grow:0.6, gap:24, first:28, dew:150, tutorial:true },
   { name:'第二天 · 铁甲来袭', short:'铁甲来袭', plants:['dew','burr','wall','mine'], zs:{walker:3,armor:1.2}, unlock:{armor:2}, waves:8, base:1.5, grow:0.9, gap:24, first:22, dew:150 },
-  { name:'第三天 · 疾风',     short:'疾风',     plants:['dew','burr','wall','mine','frost'], zs:{walker:3,armor:1.3,runner:1.5}, unlock:{armor:2,runner:3}, waves:10, base:2, grow:1.1, gap:23, first:22, dew:150 },
-  { name:'第四天 · 巨影',     short:'巨影',     plants:ALL, zs:{walker:3,armor:1.6,runner:1.4,brute:0.7}, unlock:{armor:1,runner:2,brute:5}, waves:12, base:2.5, grow:1.25, gap:23, first:20, dew:200 },
-  { name:'第五天 · 长夜',     short:'长夜',     plants:ALL, zs:{walker:2.2,armor:2.2,runner:1.8,brute:1.1}, unlock:{brute:3}, waves:15, base:3.5, grow:1.5, gap:22, first:20, dew:250 },
+  { name:'第三天 · 疾风',     short:'疾风',     plants:['dew','burr','wall','mine','frost'], zs:{walker:3,armor:1.3,runner:1.5,thrower:0.8}, unlock:{armor:2,runner:3,thrower:5}, waves:10, base:2, grow:1.1, gap:23, first:22, dew:150 },
+  { name:'第四天 · 巨影',     short:'巨影',     plants:ALL, zs:{walker:3,armor:1.6,runner:1.4,thrower:1,shaman:0.6,brute:0.7}, unlock:{armor:1,runner:2,thrower:3,shaman:4,brute:6}, waves:12, base:2.5, grow:1.25, gap:23, first:20, dew:200 },
+  { name:'第五天 · 长夜',     short:'长夜',     plants:ALL, zs:{walker:2.2,armor:2.2,runner:1.8,thrower:1.2,shaman:0.9,brute:1.1}, unlock:{shaman:2,brute:3}, waves:15, base:3.5, grow:1.5, gap:22, first:20, dew:250 },
+  { name:'无尽模式', short:'无尽', endless:true, plants:ALL, zs:{walker:2.2,armor:2,runner:1.8,thrower:1.2,shaman:0.9,brute:1}, unlock:{runner:2,armor:2,thrower:4,shaman:6,brute:8}, waves:Infinity, base:2.5, grow:1.35, gap:21, first:20, dew:300 },
 ];
+const ENDLESS = LEVELS.length - 1, STORY = LEVELS.length - 1;
+const UPG = { dew:true, burr:true, frost:true, twin:true, wall:true };
 
 const $ = id => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -165,7 +177,8 @@ const rowGround = r => GY + r * CH + 88;     // feet line
 // ---------- storage ----------
 function load(key, def) { try { const v = localStorage.getItem(key); return v == null ? def : JSON.parse(v); } catch (e) { return def; } }
 function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
-let unlocked = clamp(load('gg_unlocked', 1) | 0, 1, LEVELS.length);
+let unlocked = clamp(load('gg_unlocked', 1) | 0, 1, STORY);
+let best = load("gg_best", 0) | 0;
 let cleared = load('gg_cleared', []); if (!Array.isArray(cleared)) cleared = [];
 
 // ---------- audio ----------
@@ -432,13 +445,14 @@ function drawPlant(c, p, t) {
 function drawZombie(c, z, t) {
   const big = z.k === 'brute' ? 1.38 : 1;
   // local coords: feet at y = 46
-  c.save(); c.translate(z.x, rowGround(z.row));
+  c.save(); c.translate(z.x, rowGround(z.row) + (z.yOff || 0));
   if (z.dead > 0) { c.globalAlpha = clamp(1.2 - z.dead * 1.2, 0, 1); c.rotate(Math.min(1, z.dead * 2.2) * 1.35); }
   c.scale(big, big); c.translate(0, -46);
+  if (z.yOff) c.rotate(z.yOff > 0 ? -0.12 : 0.12);
   const slow = z.slow > 0;
   const skin = z.burnt ? '#2b2420' : z.flash > 0 ? '#eef5e2' : slow ? '#9cc4d8' : (z.k === 'brute' ? '#8fa27a' : '#a5b690');
   const skinDark = z.burnt ? '#151110' : slow ? '#5d8aa3' : '#6b7d58';
-  const shirt = z.burnt ? '#1f1a17' : { walker:'#6f7a5a', armor:'#5a5e69', runner:'#3d5b78', brute:'#5b4532' }[z.k];
+  const shirt = z.burnt ? '#1f1a17' : { walker:'#6f7a5a', armor:'#5a5e69', runner:'#3d5b78', brute:'#5b4532', thrower:'#7a5a3a', shaman:'#4b3b66' }[z.k];
   const pants = z.burnt ? '#1a1614' : '#46455a';
   const moving = !z.eating && !z.dead;
   const sw = moving ? Math.sin(z.phase) : 0;
@@ -477,6 +491,17 @@ function drawZombie(c, z, t) {
     c.fillStyle = '#9b6b3c'; rr(c, -20, -38, 16, 10, 4); c.fill();
   }
   if (z.k === 'brute') { c.fillStyle = '#3a2b1d'; c.fillRect(-15, -2, 30, 6); c.fillStyle = '#c9a050'; c.fillRect(-4, -2, 8, 6); }
+  if (z.k === 'thrower' && !z.burnt) {
+    c.strokeStyle = '#3e2c1a'; c.lineWidth = 3; c.beginPath(); c.moveTo(-12, -34); c.lineTo(14, 4); c.stroke();
+    c.fillStyle = '#9c7b4f'; c.strokeStyle = '#5a442c'; c.lineWidth = 2;
+    c.beginPath(); c.ellipse(16, -16, 12, 15, 0.2, 0, TAU); c.fill(); c.stroke();
+    c.fillStyle = '#8d877c'; c.beginPath(); c.arc(12, -30, 5, 0, TAU); c.arc(20, -29, 4, 0, TAU); c.fill();
+  }
+  if (z.k === 'shaman' && !z.burnt) {
+    c.fillStyle = shirt; c.beginPath(); c.moveTo(-15, -34); c.lineTo(15, -34); c.lineTo(22, 34); c.lineTo(-22, 34); c.closePath(); c.fill();
+    c.fillStyle = '#c9a84a'; c.fillRect(-20, 26, 42, 4); c.fillRect(-2, -34, 4, 60);
+    c.fillStyle = '#e8d9a0'; for (const y of [-24, -12, 0]) { c.beginPath(); c.arc(0, y, 2.5, 0, TAU); c.fill(); }
+  }
   // head
   c.save(); c.translate(-3, -50 + bob);
   if (z.k === 'runner' && !z.burnt) {
@@ -498,14 +523,62 @@ function drawZombie(c, z, t) {
     c.strokeStyle = '#3b3326'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(2, -17); c.lineTo(4, -24); c.moveTo(6, -16); c.lineTo(10, -22); c.moveTo(-2, -18); c.lineTo(-3, -23); c.stroke();
   }
   if (z.k === 'brute' && !z.burnt) { c.fillStyle = '#7a3b2a'; rr(c, -16, -14, 32, 6, 3); c.fill(); }
+  if (z.k === 'shaman' && !z.burnt) {
+    c.fillStyle = shirt; c.beginPath(); c.moveTo(-14, 6); c.quadraticCurveTo(-20, -24, 0, -24); c.quadraticCurveTo(22, -24, 20, 14); c.lineTo(14, 16); c.quadraticCurveTo(14, -14, 0, -15); c.quadraticCurveTo(-12, -14, -10, 6); c.closePath(); c.fill();
+    c.fillStyle = '#c9a84a'; c.beginPath(); c.moveTo(-4, -24); c.lineTo(0, -32); c.lineTo(4, -24); c.fill();
+  }
   c.restore();
   // front arm
-  const ay = -26 + Math.sin(z.phase) * 3 + (z.eating ? Math.sin(t * 14) * 5 : 0);
-  c.strokeStyle = skin; c.lineWidth = 8;
-  c.beginPath(); c.moveTo(-4, -28); c.lineTo(-38, ay); c.stroke();
-  c.fillStyle = skin; c.beginPath(); c.arc(-40, ay, z.k === 'brute' ? 7 : 5, 0, TAU); c.fill();
+  if (z.k === 'shaman' && !z.burnt) {
+    const sx = -30, glow = 0.45 + 0.35 * Math.sin(t * 4) + (z.castT > 0 ? z.castT : 0);
+    c.strokeStyle = '#6b4a2a'; c.lineWidth = 4; c.beginPath(); c.moveTo(sx, 44); c.lineTo(sx + 2, -72); c.stroke();
+    const og = c.createRadialGradient(sx + 2, -78, 1, sx + 2, -78, 18);
+    og.addColorStop(0, `rgba(190,255,170,${clamp(glow, 0, 1)})`); og.addColorStop(1, 'rgba(120,230,110,0)');
+    c.fillStyle = og; c.beginPath(); c.arc(sx + 2, -78, 18, 0, TAU); c.fill();
+    c.fillStyle = '#8ff07a'; c.strokeStyle = '#2f7a2a'; c.lineWidth = 1.5; c.beginPath(); c.arc(sx + 2, -78, 6, 0, TAU); c.fill(); c.stroke();
+    c.strokeStyle = skin; c.lineWidth = 7; c.beginPath(); c.moveTo(-4, -28); c.lineTo(sx + 2, -30); c.stroke();
+    c.fillStyle = skin; c.beginPath(); c.arc(sx + 2, -30, 5, 0, TAU); c.fill();
+  } else if (z.armless) {
+    c.strokeStyle = skin; c.lineWidth = 8; c.beginPath(); c.moveTo(-4, -28); c.lineTo(-12, -26); c.stroke();
+    c.fillStyle = '#6b2a2a'; c.beginPath(); c.arc(-13, -26, 4, 0, TAU); c.fill();
+  } else if (z.k === 'thrower' && z.windup > 0) {
+    const k = z.windup;
+    const ex = -4 + Math.cos(-2.2 - k * 0.8) * 34, ey = -28 + Math.sin(-2.2 - k * 0.8) * 34;
+    c.strokeStyle = skin; c.lineWidth = 8; c.beginPath(); c.moveTo(-4, -28); c.lineTo(ex, ey); c.stroke();
+    c.fillStyle = '#8d877c'; c.strokeStyle = '#4f4a42'; c.lineWidth = 1.5; c.beginPath(); c.arc(ex, ey - 4, 7, 0, TAU); c.fill(); c.stroke();
+  } else {
+    const ay = -26 + Math.sin(z.phase) * 3 + (z.eating ? Math.sin(t * 14) * 5 : 0);
+    c.strokeStyle = skin; c.lineWidth = 8;
+    c.beginPath(); c.moveTo(-4, -28); c.lineTo(-38, ay); c.stroke();
+    c.fillStyle = skin; c.beginPath(); c.arc(-40, ay, z.k === 'brute' ? 7 : 5, 0, TAU); c.fill();
+  }
   c.restore();
   c.restore();
+  // health bar after being hit
+  if (z.barT > 0 && !z.dead) {
+    const Z = ZOMBIES[z.k], tot = Z.hp + Z.armor, cur = z.hp + Math.max(0, z.armor);
+    const bw = z.k === 'brute' ? 54 : 40, bx = z.x - bw / 2 + 2, by = rowGround(z.row) + (z.yOff || 0) - (z.k === 'brute' ? 150 : 118);
+    c.save(); c.globalAlpha = clamp(z.barT * 2, 0, 1);
+    c.fillStyle = 'rgba(20,12,6,.75)'; rr(c, bx - 1.5, by - 1.5, bw + 3, 8, 3); c.fill();
+    c.fillStyle = '#c94a32'; c.fillRect(bx, by, bw * clamp(z.hp / tot, 0, 1), 5);
+    if (z.armor > 0) { c.fillStyle = '#b9c2cc'; c.fillRect(bx + bw * z.hp / tot, by, bw * z.armor / tot, 5); }
+    c.restore();
+  }
+}
+function drawPlantExtras(c, p) {
+  if (p.lv > 1) {
+    for (let i = 0; i < p.lv - 1; i++) {
+      const sx = -8 + i * 16 - (p.lv - 2) * 8 + 8, sy = 44;
+      c.fillStyle = '#ffd34d'; c.strokeStyle = '#7a5410'; c.lineWidth = 1.5; c.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 3 : 7; c.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r); }
+      c.closePath(); c.fill(); c.stroke();
+    }
+  }
+  if (p.hp < p.maxHp && p.type !== 'boom') {
+    const k = clamp(p.hp / p.maxHp, 0, 1);
+    c.fillStyle = 'rgba(20,12,6,.7)'; rr(c, -24, -52, 48, 7, 3); c.fill();
+    c.fillStyle = k > 0.5 ? '#7ccf45' : k > 0.25 ? '#e0b13a' : '#d9482f'; c.fillRect(-22.5, -50.5, 45 * k, 4);
+  }
 }
 
 function drawDrop(c, x, y, s, alpha) {
@@ -537,55 +610,111 @@ function newGame(li) {
   const L = LEVELS[li];
   G = {
     li, L, t: 0, dew: L.dew, plants: [], grid: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
-    zs: [], shots: [], drops: [], fx: [], boulders: Array.from({ length: ROWS }, () => ({ st: 'ready', x: 40, rot: 0 })),
+    zs: [], shots: [], rocks: [], drops: [], fx: [], boulders: Array.from({ length: ROWS }, () => ({ st: 'ready', x: 40, rot: 0 })),
     cds: {}, sel: null, shovel: false, wave: 0, nextWave: L.first, queue: [], nextSky: 5, over: false, won: false,
-    endAt: 0, banner: null, paused: false, hover: null, warned: false,
+    endAt: 0, banner: null, paused: false, hover: null, warned: false, shake: 0, kills: 0,
+    tips: L.tutorial ? [
+      { t: 1.5, text: '先种露珠草，攒露珠' }, { t: 9, text: '点亮晶晶的露珠收集' }, { t: 17, text: '每行种上刺果藤准备迎敌' },
+      { t: 60, text: '同一种植物叠种在自己身上可以升级' },
+    ] : [],
   };
   for (const k of L.plants) G.cds[k] = k === 'boom' ? PLANTS[k].cd * 0.6 : (k === 'wall' || k === 'mine') ? PLANTS[k].cd * 0.3 : 0;
   buildCards();
   $('lvname').textContent = L.name;
+  hudWave = -1;
   const bar = $('bar'); bar.querySelectorAll('.flag').forEach(f => f.remove());
-  for (let i = 5; i < L.waves; i += 5) { const f = document.createElement('div'); f.className = 'flag'; f.style.left = (i / L.waves * 100) + '%'; bar.appendChild(f); }
+  if (!L.endless) for (let i = 5; i < L.waves; i += 5) { const f = document.createElement('div'); f.className = 'flag'; f.style.left = (i / L.waves * 100) + '%'; bar.appendChild(f); }
   setPaused(false);
-  hideOverlay();
+  showIntro();
 }
 
 function banner(text, dur, color) { G.banner = { text, t: 0, dur: dur || 2.6, color: color || '#ffe9a8' }; }
 
+// ---------- lane analysis (used by the wave director and by zombies) ----------
+const FIRE = { burr: 1, frost: 1.2, twin: 2 };
+function laneFire(r) { let s = 0; for (const p of G.plants) if (!p.gone && p.row === r && FIRE[p.type]) s += FIRE[p.type] * (1 + 0.5 * (p.lv - 1)); return s; }
+function laneBlock(r) { let s = 0; for (const p of G.plants) if (!p.gone && p.row === r) { if (p.type === 'wall') s += p.hp / 2000; if (p.type === 'mine' && p.arm >= 12) s += 1.2; } return s; }
+function laneDefense(r) { return laneFire(r) + laneBlock(r) * 0.8; }
+function laneTraffic(r) { let s = 0; for (const z of G.zs) if (!z.dead && z.row === r) s += ZOMBIES[z.k].cost; for (const q of G.queue) if (q.row === r) s += ZOMBIES[q.k].cost; return s; }
+// how dangerous the path ahead is for a zombie at x in row r
+function pathDanger(r, x) {
+  let s = laneFire(r) * 1.0;
+  for (const p of G.plants) if (!p.gone && p.row === r && p.x < x) { if (p.type === 'wall') s += p.hp / 1500; if (p.type === 'mine' && p.arm >= 12) s += 3; }
+  if (G.boulders[r].st === 'ready') s += 0.5;
+  return s;
+}
+
+function pickRow(k, load) {
+  const scores = [];
+  for (let r = 0; r < ROWS; r++) {
+    const def = laneDefense(r), fire = laneFire(r);
+    let s;
+    switch (k) {
+      case 'runner': s = def * 2 + load[r] * 0.5; break;                  // goes for the weakest lane
+      case 'brute': s = -fire * 1.5 + load[r] * 0.8; break;               // smashes into the strongest
+      case 'thrower': s = -fire + laneBlock(r) * -0.5 + load[r]; break;   // snipes lanes full of shooters
+      case 'shaman': s = -load[r] * 1.2; break;                            // follows the crowd
+      default: s = def * 0.9 + load[r] * 0.7;
+    }
+    scores.push(s + Math.random() * 1.6);
+  }
+  let bestR = 0; for (let r = 1; r < ROWS; r++) if (scores[r] < scores[bestR]) bestR = r;
+  return bestR;
+}
+
 function startWave() {
   const L = G.L; G.wave++;
   const final = G.wave === L.waves;
-  let budget = Math.round(L.base + (G.wave - 1) * L.grow);
+  const big = G.wave % 5 === 0;
+  let budget = Math.round(L.base + (G.wave - 1) * L.grow + (L.endless ? Math.pow(Math.max(0, G.wave - 10), 1.35) * 0.4 : 0));
   if (final) { budget = Math.round(budget * 2.2) + 2; banner('最后一波！', 3, '#ff9c7a'); sfx('wave'); }
   else if (G.wave === 1) { banner('尸群来了！', 2.6); sfx('wave'); }
-  else if (G.wave % 5 === 0) { budget = Math.round(budget * 1.5); banner('尸潮将至！', 2.6, '#ffc58a'); sfx('wave'); }
+  else if (big) { budget = Math.round(budget * 1.5); banner(L.endless ? `第 ${G.wave} 波 · 尸潮` : '尸潮将至！', 2.6, '#ffc58a'); sfx('wave'); }
   const types = Object.keys(L.zs).filter(k => G.wave >= (L.unlock[k] || 1));
-  const spread = final ? 12 : G.wave % 5 === 0 ? 9 : 6;
-  const rowsLoad = Array(ROWS).fill(0);
+  const spread = final ? 12 : big ? 9 : 6;
+  const load = Array(ROWS).fill(0);
+  for (let r = 0; r < ROWS; r++) load[r] = laneTraffic(r);
+  const picks = [];
   while (budget > 0) {
     const avail = types.filter(k => ZOMBIES[k].cost <= budget);
     if (!avail.length) break;
     let tot = 0; for (const k of avail) tot += L.zs[k];
     let r = Math.random() * tot, k = avail[0];
     for (const kk of avail) { r -= L.zs[kk]; if (r <= 0) { k = kk; break; } }
-    budget -= ZOMBIES[k].cost;
-    const minLoad = Math.min(...rowsLoad);
-    const cand = []; for (let i = 0; i < ROWS; i++) if (rowsLoad[i] <= minLoad + 1) cand.push(i);
-    const row = cand[Math.floor(Math.random() * cand.length)]; rowsLoad[row] += ZOMBIES[k].cost;
-    G.queue.push({ t: G.t + Math.random() * spread, k, row });
+    budget -= ZOMBIES[k].cost; picks.push(k);
   }
-  G.nextWave = G.t + L.gap + (final ? 0 : 0);
+  // shamans come last so they can follow the crowd
+  picks.sort((a, b) => (a === 'shaman') - (b === 'shaman'));
+  for (const k of picks) {
+    const row = pickRow(k, load); load[row] += ZOMBIES[k].cost;
+    G.queue.push({ t: G.t + Math.random() * spread + (k === 'shaman' ? 2 : 0), k, row });
+  }
+  G.nextWave = G.t + L.gap;
 }
 
 function spawnZombie(k, row) {
   const Z = ZOMBIES[k];
-  G.zs.push({ k, row, x: W + 20 + Math.random() * 30, hp: Z.hp, armor: Z.armor, maxArmor: Z.armor || 1, phase: Math.random() * TAU,
-    slow: 0, flash: 0, eating: false, dead: 0, burnt: false, chompT: 0 });
+  G.zs.push({ k, row, x: W + 20 + Math.random() * 30, hp: Z.hp, maxHp: Z.hp, armor: Z.armor, maxArmor: Z.armor || 1, phase: Math.random() * TAU,
+    spd: Z.speed * rand(0.9, 1.12), slow: 0, flash: 0, eating: false, dead: 0, burnt: false, chompT: 0, yOff: 0, switched: 0,
+    blockT: 0, barT: 0, throwT: rand(0.5, 1.5), windup: 0, castT: 0, healT: rand(1.5, 3), armless: false });
 }
 
+function canUpgrade(p, type) { return p && p.type === type && UPG[type] && p.lv < 3; }
 function place(type, row, col) {
   const P = PLANTS[type];
-  const p = { type, row, col, x: GX + col * CW + 50, y: rowY(row), hp: P.hp, maxHp: P.hp, timer: 0, kick: 0, arm: 0, fuse: 0, hurt: 0 };
+  const occ = G.grid[row][col];
+  if (occ) {
+    // upgrade
+    occ.lv++;
+    if (type === 'wall') { occ.maxHp = P.hp * (1 + 0.5 * (occ.lv - 1)); occ.hp = occ.maxHp; }
+    else occ.hp = occ.maxHp;
+    G.dew -= P.cost; G.cds[type] = P.cd;
+    G.fx.push({ k: 'ring', x: occ.x, y: occ.y + 10, t: 0, life: 0.6, col: '#ffd34d' });
+    G.fx.push({ k: 'txt', x: occ.x, y: occ.y - 50, t: 0, life: 1, text: '升级 ★' + occ.lv, col: '#ffe48a' });
+    sfx('collect');
+    return;
+  }
+  const p = { type, row, col, x: GX + col * CW + 50, y: rowY(row), hp: P.hp, maxHp: P.hp, timer: 0, kick: 0, arm: 0, fuse: 0, hurt: 0, lv: 1 };
   if (type === 'dew') p.timer = 7;
   if (type === 'burr' || type === 'frost' || type === 'twin') p.timer = 0.4;
   G.plants.push(p); G.grid[row][col] = p;
@@ -603,19 +732,25 @@ function puff(x, y, col, n) {
 }
 function damage(z, amt, kind) {
   if (z.dead) return;
-  z.flash = 0.08;
+  z.flash = 0.08; z.barT = 2.5;
+  if (kind !== 'boom' && z.k !== 'brute') z.x += kind === 'frost' ? 1 : 2;   // a little knockback
   if (z.armor > 0) {
     const a = Math.min(z.armor, amt); z.armor -= a; amt -= a;
     if (kind !== 'boom') sfx('clank');
     if (z.armor <= 0) G.fx.push({ k: 'plate', x: z.x, y: rowGround(z.row) - 70, vx: 60, vy: -160, rot: 0, life: 1.1, t: 0 });
   } else if (kind !== 'boom') sfx('hit');
   z.hp -= amt;
-  if (z.hp <= 0) { z.hp = 0; z.dead = 0.001; if (kind === 'boom') z.burnt = true; }
+  if (!z.armless && z.k !== 'shaman' && z.hp > 0 && z.hp < z.maxHp * 0.5) {
+    z.armless = true;
+    G.fx.push({ k: 'arm', x: z.x - 30, y: rowGround(z.row) - 72, vx: rand(-40, 20), vy: -150, rot: 0, life: 1, t: 0 });
+  }
+  if (z.hp <= 0) { z.hp = 0; z.dead = 0.001; G.kills++; if (kind === 'boom') z.burnt = true; }
 }
 function explode(x, y, rows, rx) {
   for (const z of G.zs) if (!z.dead && rows.includes(z.row) && Math.abs(z.x - x) < rx) damage(z, 1800, 'boom');
   G.fx.push({ k: 'boom', x, y, t: 0, life: 0.7, r: rows.length > 1 ? 150 : 75 });
   puff(x, y + 20, '#5a4128', 14); puff(x, y, '#ffb347', 12);
+  G.shake = Math.max(G.shake, rows.length > 1 ? 12 : 7);
   sfx('boom');
 }
 
@@ -623,9 +758,11 @@ function explode(x, y, rows, rx) {
 function update(dt) {
   const L = G.L;
   G.t += dt;
+  G.shake = Math.max(0, G.shake - dt * 30);
   for (const k in G.cds) G.cds[k] = Math.max(0, G.cds[k] - dt);
   if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.dur) G.banner = null; }
   if (G.over) { updateFx(dt); updateZombies(dt, true); return; }
+  if (G.tips.length && G.t >= G.tips[0].t && !G.banner) { const tp = G.tips.shift(); banner(tp.text, 3, '#e7f7c8'); }
 
   // sky dew
   if (G.t >= G.nextSky) {
@@ -645,23 +782,28 @@ function update(dt) {
     switch (p.type) {
       case 'dew':
         p.timer -= dt;
-        if (p.timer <= 0) { p.timer = 23; G.drops.push({ x: p.x + rand(-10, 10), y: p.y - 20, ty: p.y + rand(10, 26), vy: -220, vx: rand(-50, 50), v: 25, st: 'pop', life: 11, rest: 0 }); }
+        if (p.timer <= 0) {
+          p.timer = 23 - (p.lv - 1) * 3;
+          const v = [25, 35, 50][p.lv - 1];
+          G.drops.push({ x: p.x + rand(-10, 10), y: p.y - 20, ty: p.y + rand(10, 26), vy: -220, vx: rand(-50, 50), v, st: 'pop', life: 11, rest: 0 });
+        }
         break;
       case 'burr': case 'frost': case 'twin': {
         p.timer = Math.max(0, p.timer - dt);
-        if (p.timer <= 0 && G.zs.some(z => !z.dead && z.row === p.row && z.x > p.x - 10 && z.x < W - 10)) {
-          p.timer = 1.4; p.kick = 1;
+        if (p.timer <= 0 && G.zs.some(z => !z.dead && z.row === p.row && Math.abs(z.yOff) < 50 && z.x > p.x - 10 && z.x < W - 10)) {
+          p.timer = p.lv >= 3 ? 1.15 : 1.4; p.kick = 1;
+          const dmg = Math.round(20 * (p.lv >= 2 ? 1.5 : 1));
           if (p.type === 'twin') {
-            G.shots.push({ row: p.row, x: p.x + 24, y: p.y - 30, k: 'burr', dmg: 20 });
-            G.shots.push({ row: p.row, x: p.x + 36, y: p.y - 2, k: 'burr', dmg: 20 });
-          } else G.shots.push({ row: p.row, x: p.x + 34, y: p.y - 16, k: p.type, dmg: 20 });
+            G.shots.push({ row: p.row, x: p.x + 24, y: p.y - 30, k: 'burr', dmg });
+            G.shots.push({ row: p.row, x: p.x + 36, y: p.y - 2, k: 'burr', dmg });
+          } else G.shots.push({ row: p.row, x: p.x + 34, y: p.y - 16, k: p.type, dmg, lv: p.lv });
           sfx('shoot');
         }
         break;
       }
       case 'mine':
         p.arm += dt;
-        if (p.arm >= 12 && G.zs.some(z => !z.dead && z.row === p.row && Math.abs(z.x - 20 - p.x) < 45)) { explode(p.x, p.y, [p.row], 80); removePlant(p); }
+        if (p.arm >= 12 && G.zs.some(z => !z.dead && z.row === p.row && Math.abs(z.yOff) < 40 && Math.abs(z.x - 20 - p.x) < 45)) { explode(p.x, p.y, [p.row], 80); removePlant(p); }
         break;
       case 'boom':
         p.fuse += dt;
@@ -673,18 +815,35 @@ function update(dt) {
 
   // shots
   for (const s of G.shots) {
-    s.x += 400 * dt;
+    s.x += 420 * dt;
     let hit = null;
-    for (const z of G.zs) if (!z.dead && z.row === s.row && s.x >= z.x - 22 && s.x <= z.x + 28 && z.x < W) { if (!hit || z.x < hit.x) hit = z; }
+    for (const z of G.zs) if (!z.dead && z.row === s.row && Math.abs(z.yOff) < 50 && s.x >= z.x - 22 && s.x <= z.x + 28 && z.x < W) { if (!hit || z.x < hit.x) hit = z; }
     if (hit) {
       damage(hit, s.dmg, s.k);
-      if (s.k === 'frost') hit.slow = 4;
+      if (s.k === 'frost') hit.slow = s.lv >= 3 ? 6 : 4;
       s.gone = true;
       for (let i = 0; i < 5; i++) G.fx.push({ k: 'p', x: s.x, y: s.y, vx: rand(-80, 40), vy: rand(-90, 60), life: 0.3, t: 0, col: s.k === 'frost' ? '#d9f2ff' : '#a6dd62', r: 2.5 });
     }
     if (s.x > W + 20) s.gone = true;
   }
   G.shots = G.shots.filter(s => !s.gone);
+
+  // enemy rocks
+  for (const r of G.rocks) {
+    r.t += dt;
+    if (r.t >= r.dur) {
+      r.gone = true;
+      const tgt = r.target;
+      if (tgt && !tgt.gone) {
+        tgt.hp -= r.dmg; tgt.hurt = 0.2;
+        puff(tgt.x, tgt.y, '#8d877c', 7);
+        if (tgt.hp <= 0) { removePlant(tgt); puff(tgt.x, tgt.y + 20, '#4c9a33', 8); }
+      } else puff(r.tx, r.ty + 30, '#7a5a36', 5);
+      sfx('hit');
+    }
+  }
+  G.rocks = G.rocks.filter(r => !r.gone);
+  G.plants = G.plants.filter(p => !p.gone);
 
   updateZombies(dt, false);
 
@@ -693,7 +852,7 @@ function update(dt) {
     const b = G.boulders[r];
     if (b.st !== 'roll') continue;
     b.x += 520 * dt; b.rot += dt * 12;
-    for (const z of G.zs) if (!z.dead && z.row === r && Math.abs(z.x - b.x) < 46) { z.hp = 0; z.armor = 0; z.dead = 0.001; puff(z.x, rowGround(r) - 20, '#8a8172', 6); }
+    for (const z of G.zs) if (!z.dead && z.row === r && Math.abs(z.yOff) < 50 && Math.abs(z.x - b.x) < 46) { z.hp = 0; z.armor = 0; z.dead = 0.001; G.kills++; puff(z.x, rowGround(r) - 20, '#8a8172', 6); G.shake = Math.max(G.shake, 4); }
     if (b.x > W + 60) b.st = 'gone';
   }
 
@@ -716,10 +875,32 @@ function update(dt) {
   updateFx(dt);
 
   // win
-  if (!G.won && G.wave >= L.waves && G.queue.length === 0 && G.zs.length === 0) {
+  if (!G.won && !L.endless && G.wave >= L.waves && G.queue.length === 0 && G.zs.length === 0) {
     G.won = true; G.over = true; G.endAt = G.t + 1.6; banner('守住了！', 2.5, '#c8ff9a'); sfx('win');
     for (const d of G.drops) if (d.st !== 'fly') collect(d);
   }
+}
+
+function plantBlocking(z) {
+  const front = z.x - 24;
+  let target = null;
+  for (const p of G.plants) if (!p.gone && p.row === z.row && front <= p.x + 30 && front >= p.x - 42) { if (!target || p.x > target.x) target = p; }
+  return target;
+}
+// try to step into a neighbouring lane; returns true if it moved
+function trySwitch(z, minGain) {
+  const here = pathDanger(z.row, z.x);
+  let bestR = -1, bestS = here - minGain;
+  for (const r of [z.row - 1, z.row + 1]) {
+    if (r < 0 || r >= ROWS) continue;
+    // the spot next to it must be free of plants
+    if (G.plants.some(p => !p.gone && p.row === r && Math.abs(p.x - (z.x - 24)) < 60)) continue;
+    const s = pathDanger(r, z.x) + laneTraffic(r) * 0.05 + Math.random() * 0.2;
+    if (s < bestS) { bestS = s; bestR = r; }
+  }
+  if (bestR < 0) return false;
+  z.yOff = (z.row - bestR) * CH; z.row = bestR; z.switched++; z.eating = false; z.blockT = 0;
+  return true;
 }
 
 function updateZombies(dt, frozen) {
@@ -728,33 +909,86 @@ function updateZombies(dt, frozen) {
     if (frozen) continue;
     const Z = ZOMBIES[z.k];
     const sf = z.slow > 0 ? 0.5 : 1;
-    z.slow = Math.max(0, z.slow - dt); z.flash -= dt;
-    const front = z.x - 24;
-    let target = null;
-    for (const p of G.plants) if (!p.gone && p.row === z.row && front <= p.x + 30 && front >= p.x - 42) { if (!target || p.x > target.x) target = p; }
+    z.slow = Math.max(0, z.slow - dt); z.flash -= dt; z.barT -= dt; z.castT = Math.max(0, z.castT - dt);
+    // sliding into a new lane
+    if (z.yOff) {
+      const step = 160 * dt * sf;
+      z.yOff = Math.abs(z.yOff) <= step ? 0 : z.yOff - Math.sign(z.yOff) * step;
+      z.x -= z.spd * sf * dt * 0.6; z.phase += dt * 6;
+      continue;
+    }
+    // shaman: heal the crowd around it
+    if (z.k === 'shaman') {
+      z.healT -= dt;
+      if (z.healT <= 0) {
+        z.healT = 4.5;
+        let healed = 0;
+        for (const o of G.zs) if (o !== z && !o.dead && Math.abs(o.row - z.row) <= 1 && Math.abs(o.x - z.x) < 180 && o.hp < o.maxHp) {
+          o.hp = Math.min(o.maxHp, o.hp + 90); o.barT = 2; healed++;
+          G.fx.push({ k: 'txt', x: o.x, y: rowGround(o.row) - 120, t: 0, life: 0.8, text: '+', col: '#9bff8a' });
+        }
+        if (healed) { z.castT = 0.6; G.fx.push({ k: 'ring', x: z.x - 28, y: rowGround(z.row) - 60, t: 0, life: 0.7, col: '#8ff07a', r: 180 }); }
+      }
+    }
+    const target = plantBlocking(z);
+    // thrower: stop at range and lob rocks over the front line
+    if (z.k === 'thrower' && !target && z.x < W - 30) {
+      const ahead = G.plants.filter(p => !p.gone && p.row === z.row && p.x < z.x && z.x - p.x < 430);
+      if (ahead.length) {
+        const reach = G.plants.filter(p => !p.gone && p.row === z.row && p.x < z.x && z.x - p.x < 680);
+        const soft = reach.filter(p => p.type !== 'wall' && p.type !== 'mine' && p.type !== 'boom');
+        const pool = soft.length ? soft : ahead;
+        const tgt = pool.reduce((a, b) => (b.x > a.x ? b : a));
+        z.eating = false;
+        z.throwT -= dt * sf;
+        z.windup = z.throwT < 0.5 ? 1 - z.throwT / 0.5 : 0;
+        if (z.throwT <= 0) {
+          z.throwT = 2.6; z.windup = 0;
+          const sx = z.x - 10, sy = rowGround(z.row) - 100;
+          G.rocks.push({ sx, sy, tx: tgt.x, ty: tgt.y - 10, t: 0, dur: 0.85, dmg: 50, target: tgt });
+        }
+        continue;
+      }
+      z.windup = 0;
+    }
     if (target && !(target.type === 'mine' && target.arm >= 12)) {
+      z.blockT += dt;
+      // walkers and runners look for a way around
+      const smart = z.k === 'runner' ? z.switched < 2 && z.blockT > 0.25
+        : (z.k === 'walker' || z.k === 'armor') ? z.switched < 1 && target.type === 'wall' && z.blockT > 2.5 : false;
+      if (smart && trySwitch(z, z.k === 'runner' ? -0.5 : 0.2)) continue;
+      if (smart && z.k !== 'runner') z.blockT = -3;   // nothing better: keep chewing a while before re-checking
       z.eating = true; target.hp -= Z.bite * sf * dt; target.hurt = 0.1;
       z.chompT += dt; if (z.chompT > 0.45) { z.chompT = 0; sfx('chomp'); }
       if (target.hp <= 0) { removePlant(target); puff(target.x, target.y + 20, '#4c9a33', 8); }
     } else {
-      z.eating = false;
-      z.x -= Z.speed * sf * dt;
-      z.phase += dt * sf * (Z.speed / 17) * 3.2;
+      z.eating = false; z.blockT = 0;
+      z.x -= z.spd * sf * dt;
+      z.phase += dt * sf * (z.spd / 17) * 3.2;
+      // runners dodge armed mines they can see coming
+      if (z.k === 'runner' && z.switched < 2) {
+        const mine = G.plants.find(p => !p.gone && p.row === z.row && p.type === 'mine' && p.arm >= 12 && z.x - p.x > 60 && z.x - p.x < 140);
+        if (mine) trySwitch(z, -1);
+      }
     }
     if (z.x < GX - 8) {
       const b = G.boulders[z.row];
       if (b.st === 'ready') { b.st = 'roll'; sfx('roll'); }
-      else if (b.st === 'gone' && z.x < 12 && !G.over) { G.over = true; G.endAt = G.t + 1.4; banner('尸群闯进了院子！', 3, '#ff8a7a'); sfx('lose'); }
+      else if (b.st === 'gone' && z.x < 12 && !G.over) loseGame();
     }
   }
   G.zs = G.zs.filter(z => !z.gone);
+}
+function loseGame() {
+  G.over = true; G.endAt = G.t + 1.4; banner('尸群闯进了院子！', 3, '#ff8a7a'); sfx('lose'); G.shake = 10;
+  if (G.L.endless) { const w = Math.max(0, G.wave - 1); if (w > best) { best = w; save('gg_best', best); G.newBest = true; } }
 }
 
 function updateFx(dt) {
   for (const f of G.fx) {
     f.t += dt;
     if (f.k === 'p') { f.vy += 400 * dt; f.x += f.vx * dt; f.y += f.vy * dt; }
-    else if (f.k === 'plate') { f.vy += 600 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += dt * 8; }
+    else if (f.k === 'plate' || f.k === 'arm') { f.vy += 600 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.rot += dt * 8; }
     else if (f.k === 'txt') f.y -= 30 * dt;
     if (f.t >= f.life) f.gone = true;
   }
@@ -775,26 +1009,55 @@ function render(now) {
   ctx.drawImage(bg, 0, 0, W, H);
   const t = G ? G.t : now;
   if (!G) { renderIdle(now); return; }
+  if (G.shake > 0) ctx.translate(rand(-1, 1) * G.shake, rand(-1, 1) * G.shake);
 
   // hover highlight / ghost
   if (G.hover && !G.over && (G.sel || G.shovel)) {
     const { row, col } = G.hover, x = GX + col * CW, y = GY + row * CH;
     const occupied = G.grid[row][col];
-    ctx.fillStyle = G.shovel ? (occupied ? 'rgba(255,120,90,.25)' : 'rgba(255,255,255,.08)') : (occupied ? 'rgba(255,80,60,.2)' : 'rgba(255,255,255,.18)');
+    const upg = G.sel && canUpgrade(occupied, G.sel);
+    ctx.fillStyle = G.shovel ? (occupied ? 'rgba(255,120,90,.25)' : 'rgba(255,255,255,.08)') : upg ? 'rgba(255,215,80,.28)' : (occupied ? 'rgba(255,80,60,.2)' : 'rgba(255,255,255,.18)');
     ctx.fillRect(x, y, CW, CH);
     if (G.sel && !occupied) {
       ctx.save(); ctx.globalAlpha = 0.45; ctx.translate(x + 50, y + 50);
       drawPlant(ctx, { type: G.sel, row, col, hp: 1, maxHp: 1, timer: 9, arm: 99, fuse: 0, kick: 0, hurt: 0 }, t);
       ctx.restore();
     }
+    if (upg) {
+      ctx.font = '22px ' + displayFont(); ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#3a2508';
+      ctx.strokeText('升级 ★' + (occupied.lv + 1), x + 50, y + 16); ctx.fillStyle = '#ffe48a'; ctx.fillText('升级 ★' + (occupied.lv + 1), x + 50, y + 16);
+    }
+  }
+  // lane threat markers on the hedge: where the next zombies are queued
+  if (G.queue.length) {
+    for (let r = 0; r < ROWS; r++) {
+      const n = G.queue.filter(q => q.row === r).length; if (!n) continue;
+      const a = 0.35 + 0.25 * Math.sin(t * 5);
+      ctx.fillStyle = `rgba(255,90,60,${a})`; ctx.beginPath();
+      const y = rowY(r);
+      ctx.moveTo(W - 4, y - 12); ctx.lineTo(W - 18, y); ctx.lineTo(W - 4, y + 12); ctx.fill();
+    }
   }
   // boulders
   for (let r = 0; r < ROWS; r++) if (G.boulders[r].st !== 'gone') drawBoulder(ctx, G.boulders[r], r);
   // plants and zombies by row
   for (let r = 0; r < ROWS; r++) {
-    for (const p of G.plants) if (p.row === r) { ctx.save(); ctx.translate(p.x, p.y); drawPlant(ctx, p, t); ctx.restore(); }
+    for (const p of G.plants) if (p.row === r) {
+      ctx.save(); ctx.translate(p.x, p.y);
+      if (p.lv > 1) { const s = 1 + (p.lv - 1) * 0.07; ctx.translate(0, 40); ctx.scale(s, s); ctx.translate(0, -40); }
+      drawPlant(ctx, p, t); ctx.restore();
+      ctx.save(); ctx.translate(p.x, p.y); drawPlantExtras(ctx, p); ctx.restore();
+    }
     const zs = G.zs.filter(z => z.row === r).sort((a, b) => b.x - a.x);
     for (const z of zs) drawZombie(ctx, z, t);
+  }
+  // thrown rocks
+  for (const r of G.rocks) {
+    const k = r.t / r.dur, x = r.sx + (r.tx - r.sx) * k, y = r.sy + (r.ty - r.sy) * k - Math.sin(k * Math.PI) * 120;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(k * 8);
+    ctx.fillStyle = '#8d877c'; ctx.strokeStyle = '#4f4a42'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(3, 7); ctx.lineTo(-6, 6); ctx.lineTo(-8, -2); ctx.lineTo(-2, -8); ctx.lineTo(6, -6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
   }
   // shots
   for (const s of G.shots) {
@@ -821,9 +1084,17 @@ function render(now) {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, TAU); ctx.fill();
     } else if (f.k === 'plate') {
       ctx.save(); ctx.globalAlpha = a; ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.fillStyle = '#a3abb5'; ctx.strokeStyle = '#5f6670'; ctx.lineWidth = 2; rr(ctx, -14, -11, 28, 22, 4); ctx.fill(); ctx.stroke(); ctx.restore();
+    } else if (f.k === 'arm') {
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+      ctx.strokeStyle = '#a5b690'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.stroke();
+      ctx.fillStyle = '#6b2a2a'; ctx.beginPath(); ctx.arc(14, 0, 4, 0, TAU); ctx.fill(); ctx.restore();
+    } else if (f.k === 'ring') {
+      const k = f.t / f.life, R = (f.r || 60) * (0.3 + k * 0.7);
+      ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = f.col; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, R, R * 0.35, 0, 0, TAU); ctx.stroke(); ctx.restore();
     } else if (f.k === 'txt') {
-      ctx.globalAlpha = a; ctx.font = '22px ' + getComputedStyle(document.documentElement).getPropertyValue('--display');
-      ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#1d3a55'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = '#dff4ff'; ctx.fillText(f.text, f.x, f.y); ctx.globalAlpha = 1;
+      ctx.globalAlpha = a; ctx.font = '22px ' + displayFont();
+      ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#1d3a55'; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col || '#dff4ff'; ctx.fillText(f.text, f.x, f.y); ctx.globalAlpha = 1;
     }
   }
   // drops (top layer)
@@ -857,8 +1128,9 @@ const idle = {
     { type:'dew', row:1, col:0 }, { type:'burr', row:1, col:1 }, { type:'wall', row:1, col:3 },
     { type:'frost', row:2, col:1 }, { type:'dew', row:2, col:0 }, { type:'twin', row:3, col:1 }, { type:'mine', row:3, col:4 }, { type:'dew', row:3, col:0 },
   ].map(p => Object.assign(p, { hp: 1, maxHp: 1, timer: 9, arm: 99, fuse: 0, kick: 0, hurt: 0 })),
-  zs: [ { k:'walker', row:1, x:760 }, { k:'armor', row:2, x:860, armor:1, maxArmor:1 }, { k:'runner', row:3, x:690 }, { k:'brute', row:2, x:620 } ]
-    .map(z => Object.assign({ hp: 1, armor: 0, maxArmor: 1, slow: 0, flash: 0, eating: false, dead: 0, burnt: false, phase: 0 }, z)),
+  zs: [ { k:'walker', row:1, x:760 }, { k:'armor', row:2, x:860, armor:1, maxArmor:1 }, { k:'runner', row:3, x:690 }, { k:'brute', row:2, x:620 },
+        { k:'shaman', row:3, x:900 }, { k:'thrower', row:1, x:900 } ]
+    .map(z => Object.assign({ hp: 1, maxHp: 1, armor: 0, maxArmor: 1, slow: 0, flash: 0, eating: false, dead: 0, burnt: false, phase: 0, yOff: 0, barT: 0 }, z)),
 };
 function renderIdle(now) {
   for (let r = 0; r < ROWS; r++) {
@@ -911,7 +1183,11 @@ function syncHUD() {
     if (st.sel !== sel) { st.sel = sel; b.classList.toggle('sel', sel); }
   }
   $('shovel').classList.toggle('on', G.shovel);
-  if (G.wave !== hudWave) { hudWave = G.wave; $('fill').style.width = (G.wave / G.L.waves * 100) + '%'; $('wv').textContent = `${G.wave} / ${G.L.waves} 波`; }
+  if (G.wave !== hudWave) {
+    hudWave = G.wave;
+    if (G.L.endless) { $('fill').style.width = ((G.wave % 5) / 5 * 100) + '%'; $('wv').textContent = `第 ${G.wave} 波 · 最佳 ${best}`; }
+    else { $('fill').style.width = (G.wave / G.L.waves * 100) + '%'; $('wv').textContent = `${G.wave} / ${G.L.waves} 波`; }
+  }
 }
 
 // ---------- input ----------
@@ -944,7 +1220,7 @@ cv.addEventListener('pointerdown', e => {
   }
   if (G.sel) {
     const P = PLANTS[G.sel];
-    if (occ) { sfx('bad'); return; }
+    if (occ && !canUpgrade(occ, G.sel)) { sfx('bad'); return; }
     if (G.dew < P.cost || G.cds[G.sel] > 0) { sfx('bad'); G.sel = null; return; }
     place(G.sel, cell.row, cell.col); G.sel = null; return;
   }
@@ -974,6 +1250,10 @@ const ov = $('ov'), panel = $('panel');
 function hideOverlay() { ov.hidden = true; }
 function showMenu() {
   const lv = LEVELS.map((L, i) => {
+    if (L.endless) {
+      const locked = unlocked < 4 && !cleared.includes(2);
+      return `<button class="lvbtn" data-l="${i}" ${locked ? 'disabled' : ''}><b>无尽</b><span>${locked ? '通过第三天解锁' : best ? '最佳 ' + best + ' 波' : '能撑几波？'}</span></button>`;
+    }
     const locked = i + 1 > unlocked, done = cleared.includes(i);
     return `<button class="lvbtn${done ? ' done' : ''}" data-l="${i}" ${locked ? 'disabled' : ''}><b>第${'一二三四五'[i]}天</b><span>${locked ? '未解锁' : done ? L.short + ' · 已通过' : L.short}</span></button>`;
   }).join('');
@@ -986,6 +1266,8 @@ function showMenu() {
     <div class="how"><b>玩法</b><ul>
       <li>收集<b>露珠</b>（天上落下，露珠草也会结），用来种植物。</li>
       <li>先多种几株<b>露珠草</b>攒经济，再在每一行种<b>刺果藤</b>输出。</li>
+      <li>拿着同种植物的卡片点自己，可以<b>升级</b>（最多 ★3）：伤害、射速、产量都会变高。</li>
+      <li>尸群会<b>看你的布防</b>：哪行弱就往哪行冲，被挡住会绕路。右边的红色箭头提示下一批从哪行来。</li>
       <li>每行左边有一块<b>滚石</b>，尸群走到尽头会把它撞下来清场，但只能用一次。</li>
       <li>滚石用完后再有尸群闯过去，就输了。</li>
     </ul></div>`;
@@ -997,7 +1279,7 @@ function showEnd(win) {
   const li = G.li, L = G.L;
   if (win) {
     if (!cleared.includes(li)) { cleared.push(li); save('gg_cleared', cleared); }
-    if (unlocked < Math.min(LEVELS.length, li + 2)) { unlocked = Math.min(LEVELS.length, li + 2); save('gg_unlocked', unlocked); }
+    if (unlocked < Math.min(STORY, li + 2)) { unlocked = Math.min(STORY, li + 2); save('gg_unlocked', unlocked); }
     const next = LEVELS[li + 1];
     const newPlants = next ? next.plants.filter(k => !L.plants.includes(k)).map(k => PLANTS[k].name) : [];
     const newZ = next ? Object.keys(next.zs).filter(k => !L.zs[k]).map(k => ZOMBIES[k].name) : [];
@@ -1009,6 +1291,12 @@ function showEnd(win) {
       <div class="row">${next ? `<button class="big" id="next">下一关</button>` : `<button class="big" id="again">再玩一次</button>`}<button class="big alt" id="tomenu">选关</button></div>`;
     const n = $('next'); if (n) n.addEventListener('click', () => newGame(li + 1));
     const a = $('again'); if (a) a.addEventListener('click', () => newGame(li));
+  } else if (L.endless) {
+    panel.innerHTML = `<h2 style="color:#a3301d">防线被突破</h2>
+      <p>撑过了 <b>${Math.max(0, G.wave - 1)}</b> 波，消灭 ${G.kills} 只尸群。</p>
+      <p>${G.newBest ? '新纪录！' : '最佳纪录：' + best + ' 波'}</p>
+      <div class="row"><button class="big" id="retry">再来一局</button><button class="big alt" id="tomenu">选关</button></div>`;
+    $('retry').addEventListener('click', () => newGame(li));
   } else {
     panel.innerHTML = `<h2 style="color:#a3301d">尸群闯进了院子……</h2>
       <p>坚持到了第 ${G.wave} / ${L.waves} 波。</p>
@@ -1017,6 +1305,33 @@ function showEnd(win) {
     $('retry').addEventListener('click', () => newGame(li));
   }
   $('tomenu').addEventListener('click', showMenu);
+  ov.hidden = false;
+}
+function zombieIcon(k) {
+  const c = document.createElement('canvas'); c.width = 120; c.height = 150;
+  const x = c.getContext('2d'); const s = k === 'brute' ? 0.62 : 0.85;
+  x.translate(66, 140); x.scale(s, s); x.translate(0, -88 - GY);
+  drawZombie(x, { k, row: 0, x: 0, hp: 1, maxHp: 1, armor: ZOMBIES[k].armor, maxArmor: ZOMBIES[k].armor || 1, slow: 0, flash: 0, eating: false, dead: 0, burnt: false, phase: 0.6, yOff: 0, barT: 0 }, 0);
+  return c;
+}
+function showIntro() {
+  const L = G.L;
+  const prev = G.li > 0 && !L.endless ? LEVELS[G.li - 1] : null;
+  const zs = Object.keys(L.zs);
+  panel.innerHTML = `<h2>${L.name}</h2>
+    <p class="sub">${L.endless ? '尸潮一波比一波凶，看你能撑多久。' : `共 ${L.waves} 波 · 初始露珠 ${L.dew}`}</p>
+    <div class="foes" id="foes"></div>
+    <div class="row"><button class="big" id="go">开始</button><button class="big alt" id="tomenu">选关</button></div>`;
+  const box = $('foes');
+  for (const k of zs) {
+    const Z = ZOMBIES[k], isNew = prev && !prev.zs[k];
+    const d = document.createElement('div'); d.className = 'foe' + (isNew ? ' new' : '');
+    const info = document.createElement('div');
+    info.innerHTML = `<b>${Z.name}${isNew ? '<em>新</em>' : ''}</b><span>${Z.tip}</span>`;
+    d.append(zombieIcon(k), info); box.appendChild(d);
+  }
+  $('go').addEventListener('click', () => { ensureAudio(); hideOverlay(); });
+  $('tomenu').addEventListener('click', () => { G = null; showMenu(); });
   ov.hidden = false;
 }
 
